@@ -1,0 +1,49 @@
+description: |
+    Topo looks like::
+
+    n2:20.0.0.0/24 ------+---------+----
+                      .11|      .12|
+                   +-----+-+  +----+--+
+                   | node1 |  | node2 |
+                   +---+---+  +-------+
+                     .1|
+    n1:10.0.0.0/24 ----+-+--
+                      .11|
+                       +-+--+
+                       | ep |
+                       +----+
+
+    \After topo setup:
+        curl ep(10.0.0.11) port 80 from node2(20.0.0.12) should see
+            node2 IP in response;
+        while curl node2 from ep should see node1 IP 20.0.0.11 since
+            MASQUERADE.
+
+services:
+    iptables: iptables -t nat -I POSTROUTING -s 10.0.0.0/24 -j MASQUERADE
+n1:
+    type: switch
+n2:
+    type: switch
+ep:
+    type: node
+    interfaces:
+        n1: 10.0.0.11/24
+    default_route: 10.0.0.1
+    service:
+        - echoService
+node1:
+    type: router
+    interfaces:
+        n1: 10.0.0.1/24
+        n2: 20.0.0.11/24
+    service:
+        - iptables 
+node2:
+    type: node
+    interfaces:
+        n2: 20.0.0.12/24
+    extra_routes:
+        10.0.0.0/24: 20.0.0.11
+    service:
+        - echoService

@@ -1,0 +1,42 @@
+description: |
+    .
+                   +--------+
+                   | client | 10.0.0.13
+                   +---+----+
+                       |
+                       v
+                      VIP 10.0.0.14
+                      / \
+                     /   \
+          10.0.0.11 /     \ 10.0.0.12
+        +----------+-+   +-+----------+
+        |   node1    |   |   node2    |
+        |   -----    |   |   -----    |
+        | keepalived |   | keepalived |
+        | ---------- |   | ---------- |
+        |   flask    |   |   flask    |
+        +------------+   +------------+
+
+services:
+    keepalived: keepalived -P -f %(confs)s/%(node)s_keepalived.conf -p /var/lib/%(node)s_keeplived.pid -r /var/lib/%(node)s_keepalived.pid-vrrp
+    keepalived_clean: pkill -F /var/lib/%(node)s_keeplived.pid
+n1:
+    type: switch
+node1:
+    type: node
+    interfaces:
+        n1: 10.0.0.11/24
+    service:
+        - echoService
+        - keepalived
+node2:
+    type: node
+    interfaces:
+        n1: 10.0.0.12/24
+    service:
+        - echoService
+        - keepalived
+client:
+    type: node
+    interfaces:
+        n1: 10.0.0.13/24

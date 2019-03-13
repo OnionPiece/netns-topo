@@ -1,0 +1,140 @@
+description: |
+    Topo test for 3 bgp peers. Each router has a switch with 2 nodes behind them.
+    Refer http://www.m0rd0r.eu/simple-bgp-peering-with-quagga-ex-zebra/
+    \The test topo looks like:
+              +--------------+          +--------------+
+              |    node5     |          |    node6     |
+              | 30.0.0.55/24 |          | 30.0.0.66/24 |
+              +----------+---+          +--+-----------+
+                         |                 |
+                       --+--------+--------+-- switch
+                                  |
+                     +------------+-------------+
+                     |       30.0.0.1/24        |
+                     |        Router-3          |--BGP enabled
+                     |                          |
+                     | 40.0.0.1/24  50.0.0.1/24 |
+                     +---+------------------+--+
+                        /                   \\
+                       /                     \\
+                      /                       \\
+                     /                         \\
+                    /                           \\
+                   /                             \\
+                  /                               \\
+                 /                                 \\
+                /  BGP enabled                      \\    BGP enabled
+               /   /                                 \\    /
+      +-------+------+      +-------------+      +----+---------+
+      | 40.0.0.11/24 |      |   Router-4  |      | 50.0.0.11/24 |
+      |   Router-1   |   /--+ 60.0.0.1/24 |      |  Router-2    |
+      | 60.0.0.11/24 +--/   |             |   /--+ 70.0.0.11/24 |
+      |              |      | 70.0.0.1/24 +--/   |              |
+      | 10.0.0.1/24  |      +-------------+      | 20.0.0.1/24  |
+      +-----+--------+                           +--------+-----+
+            |                                             |
+    ----+---+-----------+--- switch               ----+---+-------+-- switch
+        |               |                             |           |
+    +---+----------+ +--+-----------+       +---------+----+ +----+---------+
+    |     node1    | |    node2     |       |    node3     | |    node4     |
+    | 10.0.0.11/24 | | 10.0.0.22/24 |       | 20.0.0.33/24 | | 20.0.0.44/24 |
+    +--------------+ +--------------+       +--------------+ +--------------+
+
+
+
+
+services:
+    cp1: cp %(confs)s/quagga-bgp-peer/r1* /etc/quagga/
+    cp2: cp %(confs)s/quagga-bgp-peer/r2* /etc/quagga/
+    cp3: cp %(confs)s/quagga-bgp-peer/r3* /etc/quagga/
+    zebra1: zebra -A 127.0.0.1 -P 2010 -i /var/run/quagga/r1.zebra.pid -f /etc/quagga/r1.zebra.conf -d
+    zebra1_clean: pkill -F /var/run/quagga/r1.zebra.pid
+    zebra2: zebra -A 127.0.0.1 -P 2020 -i /var/run/quagga/r2.zebra.pid -f /etc/quagga/r2.zebra.conf -d
+    zebra2_clean: pkill -F /var/run/quagga/r2.zebra.pid
+    zebra3: zebra -A 127.0.0.1 -P 2030 -i /var/run/quagga/r3.zebra.pid -f /etc/quagga/r3.zebra.conf -d
+    zebra3_clean: pkill -F /var/run/quagga/r3.zebra.pid
+    bgpd1:  bgpd  -A 127.0.0.1 -P 2011 -i /var/run/quagga/r1.bgpd.pid  -f /etc/quagga/r1.bgpd.conf  -d
+    bgpd1_clean:  pkill -F /var/run/quagga/r1.bgpd.pid
+    bgpd2:  bgpd  -A 127.0.0.1 -P 2021 -i /var/run/quagga/r2.bgpd.pid  -f /etc/quagga/r2.bgpd.conf  -d
+    bgpd2_clean:  pkill -F /var/run/quagga/r2.bgpd.pid
+    bgpd3:  bgpd  -A 127.0.0.1 -P 2031 -i /var/run/quagga/r3.bgpd.pid  -f /etc/quagga/r3.bgpd.conf  -d
+    bgpd3_clean:  pkill -F /var/run/quagga/r3.bgpd.pid
+n1:
+    type: switch
+n2:
+    type: switch
+n3:
+    type: switch
+n4:
+    type: switch
+n5:
+    type: switch
+n6:
+    type: switch
+n7:
+    type: switch
+node1:
+    type: node
+    interfaces:
+        n1: 10.0.0.11/24
+    default_route: 10.0.0.1
+node2:
+    type: node
+    interfaces:
+        n1: 10.0.0.22/24
+    default_route: 10.0.0.1
+node3:
+    type: node
+    interfaces:
+        n2: 20.0.0.33/24
+    default_route: 20.0.0.1
+node4:
+    type: node
+    interfaces:
+        n2: 20.0.0.44/24
+    default_route: 20.0.0.1
+node5:
+    type: node
+    interfaces:
+        n3: 30.0.0.55/24
+    default_route: 30.0.0.1
+node6:
+    type: node
+    interfaces:
+        n3: 30.0.0.66/24
+    default_route: 30.0.0.1
+r1:
+    type: router
+    interfaces:
+        n1: 10.0.0.1/24
+        n4: 40.0.0.11/24
+        n6: 60.0.0.11/24
+    service:
+        - cp1
+        - zebra1
+        - bgpd1
+r2:
+    type: router
+    interfaces:
+        n2: 20.0.0.1/24
+        n5: 50.0.0.11/24
+        n7: 70.0.0.11/24
+    service:
+        - cp2
+        - zebra2
+        - bgpd2
+r3:
+    type: router
+    interfaces:
+        n3: 30.0.0.1/24
+        n4: 40.0.0.1/24
+        n5: 50.0.0.1/24
+    service:
+        - cp3
+        - zebra3
+        - bgpd3
+r4:
+    type: router
+    interfaces:
+        n6: 60.0.0.1/24
+        n7: 70.0.0.1/24

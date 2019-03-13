@@ -1,0 +1,49 @@
+description: |
+    .
+        +--------+   +-------+   +-------+
+        | client |   | node1 |   | node3 |
+        +----+---+   +---+---+   +---+---+
+             |.2         |.4         |.6
+        -----+-----------+---+-------+----- 10.0.0.0/24
+                 |.3         |.5
+              +--+-+     +---+---+
+              | lb |     | node2 |
+              +----+     +-------+
+
+    A simple topo test for haproxy with http-check.
+    After setup, you run script test test-scripts/haproxy_httpchk_test.sh
+services:
+    flask-300: gunicorn -b 0.0.0.0:80 flask-svc.flask-svc-300:application -D -p /var/run/%(node)s_gunicorn.pid
+    flask-300_clean: pkill -F /var/run/%(node)s_gunicorn.pid
+    haproxy: haproxy -f %(confs)s/haproxy_httpchk.config -p /var/run/http_check_test-haproxy.pid
+    haproxy_clean: pkill -F /var/run/http_check_test-haproxy.pid
+n1:
+    type: switch
+node1:
+    type: node
+    interfaces:
+        n1: 10.0.0.4/24
+    service:
+        - echoService
+node2:
+    type: node
+    interfaces:
+        n1: 10.0.0.5/24
+    service:
+        - echoService
+node3:
+    type: node
+    interfaces:
+        n1: 10.0.0.6/24
+    service:
+        - flask-300
+lb:
+    type: node
+    interfaces:
+        n1: 10.0.0.3/24
+    service:
+        - haproxy
+client:
+    type: node
+    interfaces:
+        n1: 10.0.0.2/24

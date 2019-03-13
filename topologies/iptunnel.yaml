@@ -1,0 +1,121 @@
+description: |
+    Topo looks like::
+
+                           +--------+
+                           | node3  | 10.0.0.13
+                           +-+----+-+
+                            /     \\
+                           /       \\
+                          /         \\
+               10.0.0.11 /           \\ 10.0.0.12
+                   +----+--+         +-+-----+
+         10.0.0.14 | node1 |=========| node2 | 10.0.0.15
+           (VIP)   +-+-+-+-+     |   +-+-+-+-+   (VIP)
+                     | | |   IP tunnel | | |
+                     | | |             | | |
+                  +--+--------+     +--+--------+
+    10.0.1.101/32 | endpoint1 |     | endpoint4 | 10.0.2.101/32
+                  +-----------+     +-----------+
+                       | |               | |
+                  +----+------+     +----+------+
+    10.0.1.102/32 | endpoint2 |     | endpoint5 | 10.0.2.102/32
+                  +-----------+     +-----------+
+                         |                 |
+                  +------+----+     +------+----+
+    10.0.1.103/32 | endpoint3 |     | endpoint6 | 10.0.2.103/32
+                  +-----------+     +-----------+
+
+    After topo setup:
+        - endpoints on the same node are reachable for each other with node forwarding;
+        - endpoints on different nodes are reachable for each other via IP tunnel;
+        - endpoint1 is associated with VIP 10.0.0.15, endpoint3 and endpoint4
+          are associated with VIP 10.0.0.14, so when they curl node3, node3 should see
+          VIP as remote address.
+    Use test-scripts/iptunnel_test.sh to test.
+
+services:
+    addPolicyRouteTable: ip rule add from %(from)s pref 32000 table 11
+    addPolicyRouteDefault: ip r add table 11 default via %(nexthop)s dev tunl0 onlink
+    addPolicyRoute: ip r add table 11 %(dest)s via %(nexthop)s dev tunl0 onlink
+    addPolicyRouteDev: ip r add table 11 %(dest)s dev %(dev)s
+modprobe:
+    - ipip
+n1:
+    type: switch
+node1:
+    type: router
+    interfaces:
+        n1: 10.0.0.11/24 10.0.0.14/32
+    service:
+        - setupTunl0
+        - addPolicyRouteTable {"from":"10.0.1.101"}
+        - addPolicyRouteDefault {"nexthop":"10.0.0.12"}
+        - addPolicyRoute {"dest":"10.0.2.0/24","nexthop":"10.0.0.12"}
+        - addPolicyRouteDev {"dest":"10.0.1.102","dev":"node1-endpoint2"}
+        - addPolicyRouteDev {"dest":"10.0.1.103","dev":"node1-endpoint3"}
+        - skipSnat {"src":"10.0.1.103","dst":"10.0.1.0/24"}
+        - skipSnat {"src":"10.0.1.103","dst":"10.0.2.0/24"}
+        - snat {"src":"10.0.1.103","to":"10.0.0.14"}
+        - skipSnat {"src":"10.0.2.101","dst":"10.0.1.0/24"}
+        - skipSnat {"src":"10.0.2.101","dst":"10.0.2.0/24"}
+        - snat {"src":"10.0.2.101","to":"10.0.0.14"}
+    extra_routes:
+        10.0.2.0/24: 10.0.0.12 tunl0 onlink
+node2:
+    type: router
+    interfaces:
+        n1: 10.0.0.12/24 10.0.0.15/32
+    service:
+        - setupTunl0
+        - addPolicyRouteTable {"from":"10.0.2.101"}
+        - addPolicyRouteDefault {"nexthop":"10.0.0.11"}
+        - addPolicyRoute {"dest":"10.0.1.0/24","nexthop":"10.0.0.11"}
+        - addPolicyRouteDev {"dest":"10.0.2.102","dev":"node2-endpoint5"}
+        - addPolicyRouteDev {"dest":"10.0.2.103","dev":"node2-endpoint6"}
+        - skipSnat {"src":"10.0.1.101","dst":"10.0.1.0/24"}
+        - skipSnat {"src":"10.0.1.101","dst":"10.0.2.0/24"}
+        - snat {"src":"10.0.1.101","to":"10.0.0.15"}
+    extra_routes:
+        10.0.1.0/24: 10.0.0.11 tunl0 onlink
+node3:
+    type: node
+    interfaces:
+        n1: 10.0.0.13/24
+    service:
+        - echoService
+endpoint1:
+    type: endpoint
+    veth:
+        node1: 10.0.1.101/32
+    service:
+        - echoService
+endpoint2:
+    type: endpoint
+    veth:
+        node1: 10.0.1.102/32
+    service:
+        - echoService
+endpoint3:
+    type: endpoint
+    veth:
+        node1: 10.0.1.103/32
+    service:
+        - echoService
+endpoint4:
+    type: endpoint
+    veth:
+        node2: 10.0.2.101/32
+    service:
+        - echoService
+endpoint5:
+    type: endpoint
+    veth:
+        node2: 10.0.2.102/32
+    service:
+        - echoService
+endpoint6:
+    type: endpoint
+    veth:
+        node2: 10.0.2.103/32
+    service:
+        - echoService

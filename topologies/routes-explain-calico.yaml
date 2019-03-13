@@ -1,0 +1,88 @@
+description: |
+    Topo looks like::
+
+                           +--------+
+                       +---+ spine  +---+
+                       |   +--------+   |
+                       |.1              |.1
+    n5:50.0.0.0/24  ---++---        ----+-+-- n6:60.0.0.0/24
+                     .11|                 |.11
+                   +----+--+         +----+--+
+                   | leaf1 |         | leaf2 |
+                   +---+---+         +---+---+
+                     .1|                 |.1
+    n3:30.0.0.0/24 ----+-+--         ----+-+-- n4:40.0.0.0/24
+                      .11|                 |.11
+                   +-----+-+         +-----+-+
+                   | node1 |         | node2 |
+                   +---+---+         +---+---+
+                     .1|                 |.1
+    n1:10.0.0.0/24 ----+-+--         ----+-+-- n2:20.0.0.0/24
+                      .11|                 |.11
+                  +------+----+      +-----+-----+
+                  | endpoint1 |      | endpoint2 |
+                  +-----------+      +-----------+
+
+    After topo setup, endpoint1(10.0.0.11) and endpoint2(20.0.0.11) should be
+    pingable for each other.
+
+    Routable is basic point for Calico to work. This topo's idea is from that.
+
+n1:
+    type: switch
+n2:
+    type: switch
+n3:
+    type: switch
+n4:
+    type: switch
+n5:
+    type: switch
+n6:
+    type: switch
+endpoint1:
+    type: node
+    interfaces:
+        n1: 10.0.0.11/24
+    default_route: 10.0.0.1
+endpoint2:
+    type: node
+    interfaces:
+        n2: 20.0.0.11/24
+    default_route: 20.0.0.1
+node1:
+    type: router
+    interfaces:
+        n1: 10.0.0.1/24
+        n3: 30.0.0.11/24
+    default_route: 30.0.0.1
+node2:
+    type: router
+    interfaces:
+        n2: 20.0.0.1/24
+        n4: 40.0.0.11/24
+    default_route: 40.0.0.1
+leaf1:
+    type: router
+    interfaces:
+        n3: 30.0.0.1/24
+        n5: 50.0.0.11/24
+    default_route: 50.0.0.1
+    extra_routes:
+        10.0.0.0/24: 30.0.0.11
+leaf2:
+    type: router
+    interfaces:
+        n4: 40.0.0.1/24
+        n6: 60.0.0.11/24
+    default_route: 60.0.0.1
+    extra_routes:
+        20.0.0.0/24: 40.0.0.11
+spine:
+    type: router
+    interfaces:
+        n5: 50.0.0.1/24
+        n6: 60.0.0.1/24
+    extra_routes:
+        10.0.0.0/24: 50.0.0.11
+        20.0.0.0/24: 60.0.0.11

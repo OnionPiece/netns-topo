@@ -1,0 +1,15 @@
+description: |
+    A simple topo for port scan test.
+    After setup, you run test script test-scripts/checkports_server.sh to start
+    port scan server, and in another terminal run test-scripts/checkports_client.sh
+    to start port scan client.
+n1:
+    type: switch
+server:
+    type: node
+    interfaces:
+        n1: 10.0.0.4/24
+client:
+    type: node
+    interfaces:
+        n1: 10.0.0.3/24

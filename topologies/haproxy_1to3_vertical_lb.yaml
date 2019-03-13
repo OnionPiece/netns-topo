@@ -1,0 +1,74 @@
+description: |
+    .
+     +--------+   +-----+   +-----+      +------+
+     | client |   | lb1 |   | lb3 |      | node |
+     +---+----+   +--+--+   +--+--+      +--+---+
+         |.2         |.4       |.6          |.8
+     ----+-----------+----+----+--------+---+------- 10.0.0.0/24
+            |.3           |.5           |.7    
+      +-----+----+     +--+--+   +------+-------+ 
+      | outer-lb |     | lb2 |   | monitor_node |
+      +----------+     +-----+   +--------------+
+
+    Topo test for 3 haproxy behind 1 outer haproxy.
+    Outer haproxy try to use http-check to check/probe monitor node befind 3 inner haproxy.
+    If http-check pass, outer haproxy can route request to node via inner haproxy.
+
+    Timeout will happen between lb3 and monitor_node.
+
+    After setup, you can run test-scripts/haproxy_1to3_vertical_lb_test.sh
+
+    The test script will try to curl manager.abc.com and monitor.abc.com via outer-lb. Since
+    outer-lb will do httpchk for request host begin with "manager." based on checking on
+    monitor.abc.com, so when try to curl manager.abc.com, no request will be forwarded to
+    lb3(10.0.0.6) by outer-lb. But when curl monitor.abc.com, outer-lb will forward reqeust
+    to lb3, and which will cause 503 error.
+services:
+    flask: gunicorn -b 0.0.0.0:80 -w 2 flask-svc.flask-svc-timeout:application -D -p /var/run/%(node)s_gunicorn.pid
+    flask_clean: pkill -F /var/run/%(node)s_gunicorn.pid
+    haproxy: haproxy -f %(confs)s/haproxy_1to3_vertical_lb.config -p /var/run/1to3_vertical_%(node)s.pid
+    haproxy_clean: pkill -F /var/run/1to3_vertical_%(node)s.pid
+    outer_ha: haproxy -f %(confs)s/haproxy_1to3_vertical_%(node)s.config -p /var/run/1to3_vertical_%(node)s.pid
+    outer_ha_clean: pkill -F /var/run/1to3_vertical_%(node)s.pid
+n1:
+    type: switch
+monitor_node:
+    type: node
+    interfaces:
+        n1: 10.0.0.7/24
+    service:
+        - flask
+node:
+    type: node
+    interfaces:
+        n1: 10.0.0.8/24
+    service:
+        - echoService
+lb1:
+    type: node
+    interfaces:
+        n1: 10.0.0.4/24
+    service:
+        - haproxy
+lb2:
+    type: node
+    interfaces:
+        n1: 10.0.0.5/24
+    service:
+        - haproxy
+lb3:
+    type: node
+    interfaces:
+        n1: 10.0.0.6/24
+    service:
+        - haproxy
+lb-outer:
+    type: node
+    interfaces:
+        n1: 10.0.0.3/24
+    service:
+        - outer_ha
+client:
+    type: node
+    interfaces:
+        n1: 10.0.0.2/24
